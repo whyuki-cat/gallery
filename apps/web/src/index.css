@@ -1,0 +1,173 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    'Inter', 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC',
+    system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* 表面层级 */
+  --color-canvas: #07070a;
+  --color-panel: #0b0b10;
+  --color-panel-2: #111118;
+  --color-panel-3: #17171f;
+
+  /* 描边 */
+  --color-line: #1c1c25;
+  --color-line-strong: #2a2a36;
+
+  /* 文字 */
+  --color-ink: #ececf2;
+  --color-ink-dim: #9b9bab;
+  --color-ink-faint: #64647a;
+
+  /* 品牌色 */
+  --color-brand: #8b5cf6;
+  --color-brand-soft: #a78bfa;
+  --color-brand-2: #22d3ee;
+
+  /* 交互层（深色主题默认值，浅色主题会覆盖） */
+  --color-hover: rgb(255 255 255 / 0.04);
+  --color-hover-strong: rgb(255 255 255 / 0.06);
+  --color-active: rgb(255 255 255 / 0.08);
+  --color-raised: rgb(255 255 255 / 0.05);
+  --color-scrim: rgb(0 0 0 / 0.65);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  html[data-theme='light'] {
+    color-scheme: light;
+
+    /* 表面层级 */
+    --color-canvas: #f6f5fb;
+    --color-panel: #ffffff;
+    --color-panel-2: #f7f6fc;
+    --color-panel-3: #efedf7;
+
+    /* 描边 */
+    --color-line: #e5e2ef;
+    --color-line-strong: #d3cde3;
+
+    /* 文字 */
+    --color-ink: #17141f;
+    --color-ink-dim: #57506b;
+    --color-ink-faint: #8a839c;
+
+    /* 品牌色 */
+    --color-brand: #7c3aed;
+    --color-brand-soft: #6d28d9;
+    --color-brand-2: #0891b2;
+
+    /* 交互层 */
+    --color-hover: rgb(23 20 31 / 0.05);
+    --color-hover-strong: rgb(23 20 31 / 0.07);
+    --color-active: rgb(23 20 31 / 0.09);
+    --color-raised: rgb(23 20 31 / 0.05);
+    --color-scrim: rgb(15 12 24 / 0.45);
+
+    /* 状态色在浅色背景上需要更深的前景色 */
+    --color-rose-200: #b42318;
+    --color-rose-300: #c0293a;
+    --color-emerald-200: #067647;
+    --color-emerald-300: #067647;
+    --color-amber-300: #b45309;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background-image:
+      radial-gradient(1100px 700px at 6% -14%, rgb(139 92 246 / 0.13), transparent 62%),
+      radial-gradient(900px 620px at 98% 112%, rgb(34 211 238 / 0.07), transparent 58%);
+    background-attachment: fixed;
+  }
+
+  html[data-theme='light'] body {
+    background-image:
+      radial-gradient(1100px 700px at 6% -14%, rgb(124 58 237 / 0.1), transparent 62%),
+      radial-gradient(900px 620px at 98% 112%, rgb(8 145 178 / 0.07), transparent 58%);
+  }
+
+  ::selection {
+    background: rgb(139 92 246 / 0.35);
+  }
+
+  html[data-theme='light'] ::selection {
+    background: rgb(124 58 237 / 0.22);
+  }
+
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #23232d;
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #34343f;
+    background-clip: content-box;
+    border: 3px solid transparent;
+  }
+
+  html[data-theme='light'] ::-webkit-scrollbar-thumb {
+    background: #cdc7dd;
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+  }
+
+  html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+    background: #b3abc8;
+    background-clip: content-box;
+    border: 3px solid transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(139 92 246 / 0.7);
+    outline-offset: 2px;
+  }
+}
+
+@utility animate-rise {
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

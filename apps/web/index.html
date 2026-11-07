@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07070a" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Gallery · 本地媒体管理器</title>
+    <script>
+      // 在首次绘制前应用主题，避免刷新时出现深色闪烁。
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('gallery.theme')
+          var mode =
+            stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'dark'
+          var dark =
+            mode === 'dark' ||
+            (mode === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var theme = dark ? 'dark' : 'light'
+          document.documentElement.dataset.theme = theme
+          document.documentElement.style.colorScheme = theme
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', dark ? '#07070a' : '#f6f5fb')
+        } catch (error) {
+          document.documentElement.dataset.theme = 'dark'
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
