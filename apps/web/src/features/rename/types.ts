@@ -23,6 +23,12 @@ export interface FsEntry {
   extension: string
 }
 
+export interface ActivateModifiers {
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+}
+
 export interface DirectoryListing {
   path: string
   parent: string | null
@@ -52,6 +58,16 @@ export interface SingleRenameRequest {
   to: string
 }
 
+export interface DeleteRequest {
+  dir: string
+  names: string[]
+}
+
+export interface DeleteResponse {
+  deleted: string[]
+  failed: Array<{ name: string; message: string }>
+}
+
 export interface PlannedItem {
   source: string
   target: string
@@ -66,20 +82,6 @@ export interface ApplyResponse {
   rolledBack: boolean
   warnings?: RenameIssue[]
   message?: string
-}
-
-export interface UndoResponse extends ApplyResponse {
-  undone: string
-  dir: string
-}
-
-export interface RenameRecord {
-  id: string
-  at: string
-  dir: string
-  pairs: Array<{ from: string; to: string }>
-  status: 'applied' | 'undone'
-  undoOf?: string
 }
 
 export type NoticeKind = 'ok' | 'error' | 'info'

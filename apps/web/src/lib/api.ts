@@ -1,12 +1,12 @@
 import type {
   ApplyRequest,
   ApplyResponse,
+  DeleteRequest,
+  DeleteResponse,
   DirectoryListing,
-  RenameRecord,
   RootsResponse,
   SingleRenameRequest,
   StatItem,
-  UndoResponse,
 } from '@/features/rename/types'
 
 export class ApiError extends Error {
@@ -76,6 +76,12 @@ export const api = {
       body: JSON.stringify({ paths }),
     }),
 
+  deleteFiles: (body: DeleteRequest) =>
+    request<DeleteResponse>('/api/fs/delete', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   apply: (body: ApplyRequest) =>
     request<ApplyResponse>('/api/rename/apply', {
       method: 'POST',
@@ -87,15 +93,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-
-  undo: () =>
-    request<UndoResponse>('/api/rename/undo', {
-      method: 'POST',
-      body: '{}',
-    }),
-
-  history: (limit = 20) =>
-    request<{ items: RenameRecord[] }>(`/api/rename/history?limit=${limit}`),
 }
 
 export function rawUrl(path: string): string {

@@ -6,7 +6,7 @@ import { File, Folder, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { joinPath, thumbUrl } from '@/lib/api'
 import { fileIconTone, formatSize, isImageFile, isVideoFile } from '@/features/rename/format'
-import type { Capabilities, FsEntry, StatItem } from '@/features/rename/types'
+import type { ActivateModifiers, Capabilities, FsEntry, StatItem } from '@/features/rename/types'
 
 interface FileGridProps {
   dir: string
@@ -15,10 +15,11 @@ interface FileGridProps {
   selected: Set<string>
   activeName: string | null
   capabilities: Capabilities | null
-  onActivate: (entry: FsEntry) => void
+  onActivate: (entry: FsEntry, modifiers: ActivateModifiers) => void
   onToggleSelect: (entry: FsEntry, index: number, event: ReactMouseEvent) => void
   onOpenDirectory: (entry: FsEntry) => void
   onVisible: (paths: string[]) => void
+  onClearSelection: () => void
 }
 
 const CARD_HEIGHT = 178
@@ -35,6 +36,7 @@ export function FileGrid({
   onToggleSelect,
   onOpenDirectory,
   onVisible,
+  onClearSelection,
 }: FileGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(4)
@@ -80,8 +82,21 @@ export function FileGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleKey, columns, dir, entries])
 
+  useEffect(() => {
+    if (!activeName) return
+    const index = entries.findIndex((entry) => entry.name === activeName)
+    if (index < 0) return
+    virtualizer.scrollToIndex(Math.floor(index / columns), { align: 'auto' })
+  }, [activeName, columns, entries, virtualizer])
+
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 select-none overflow-y-auto px-6 py-4">
+    <div
+      ref={scrollRef}
+      onClick={(event) => {
+        if (!(event.target as HTMLElement).closest('[data-entry]')) onClearSelection()
+      }}
+      className="min-h-0 flex-1 select-none overflow-y-auto px-6 py-4"
+    >
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
         {virtualRows.map((row) => {
           const start = row.index * columns
@@ -111,6 +126,7 @@ export function FileGrid({
                 return (
                   <div
                     key={entry.name}
+                    data-entry
                     className={cn(
                       'group relative flex h-[166px] select-none flex-col overflow-hidden rounded-xl border text-left transition',
                       isSelected
@@ -120,30 +136,28 @@ export function FileGrid({
                           : 'border-line/80 bg-panel-2/40 hover:border-line-strong hover:bg-panel-2/70',
                     )}
                   >
-                    {entry.type === 'file' && (
-                      <button
-                        type="button"
-                        onClick={(event) => onToggleSelect(entry, index, event)}
-                        title={isSelected ? '取消选择' : '选择'}
-                        aria-label={isSelected ? `取消选择 ${entry.name}` : `选择 ${entry.name}`}
-                        aria-pressed={isSelected}
-                        className={cn(
-                          'absolute left-1.5 top-1.5 z-10 grid size-4 cursor-pointer place-items-center rounded border transition',
-                          isSelected
-                            ? 'border-brand bg-brand text-white'
-                            : 'border-line-strong bg-panel-2/80 text-transparent hover:border-brand/60',
-                        )}
-                      >
-                        <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.4">
-                          <path d="M2.5 6.2 5 8.7l4.5-5.4" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(event) => onToggleSelect(entry, index, event)}
+                      title={isSelected ? '取消选择' : '选择'}
+                      aria-label={isSelected ? `取消选择 ${entry.name}` : `选择 ${entry.name}`}
+                      aria-pressed={isSelected}
+                      className={cn(
+                        'absolute left-1.5 top-1.5 z-10 grid size-4 cursor-pointer place-items-center rounded border transition',
+                        isSelected
+                          ? 'border-brand bg-brand text-white'
+                          : 'border-line-strong bg-panel-2/80 text-transparent hover:border-brand/60',
+                      )}
+                    >
+                      <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.4">
+                        <path d="M2.5 6.2 5 8.7l4.5-5.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
 
                     <div
                       role="button"
                       tabIndex={0}
-                      onClick={() => onActivate(entry)}
+                      onClick={(event) => onActivate(entry, event)}
                       onDoubleClick={
                         entry.type === 'directory'
                           ? (event) => {
@@ -155,7 +169,7 @@ export function FileGrid({
                       onKeyDown={(event) => {
                         if (event.key !== 'Enter') return
                         if (entry.type === 'directory') onOpenDirectory(entry)
-                        else onActivate(entry)
+                        else onActivate(entry, event)
                       }}
                       className="flex h-full w-full cursor-pointer select-none flex-col overflow-hidden"
                     >

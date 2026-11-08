@@ -7,4 +7,3 @@ import { join } from 'node:path'
  */
 export const DATA_DIR = fileURLToPath(new URL('../../../../data', import.meta.url))
 export const THUMB_DIR = join(DATA_DIR, 'thumbs')
-export const RENAME_LOG_DIR = join(DATA_DIR, 'rename-log')

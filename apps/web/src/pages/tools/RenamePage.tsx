@@ -5,12 +5,14 @@ import { CheckCircle2, Info, XCircle } from 'lucide-react'
 
 import { api, ApiError, joinPath } from '@/lib/api'
 import { cn } from '@/lib/cn'
+import { DeleteDialog } from '@/features/rename/DeleteDialog'
 import { FileDetails } from '@/features/rename/FileDetails'
 import { FileGrid } from '@/features/rename/FileGrid'
 import { FileList } from '@/features/rename/FileList'
 import { FileViewer } from '@/features/rename/FileViewer'
 import { FileToolbar, type SortKey, type ViewMode } from '@/features/rename/FileToolbar'
 import { FolderBar } from '@/features/rename/FolderBar'
+import { isImageFile, isVideoFile } from '@/features/rename/format'
 import { RenamePanel } from '@/features/rename/RenamePanel'
 import { SingleRenameDialog } from '@/features/rename/SingleRenameDialog'
 import {
@@ -20,6 +22,7 @@ import {
   WelcomeView,
 } from '@/features/rename/StatusViews'
 import type {
+  ActivateModifiers,
   DirectoryListing,
   FsEntry,
   Notice,
@@ -28,10 +31,17 @@ import type {
 } from '@/features/rename/types'
 
 const VIEW_KEY = 'gallery.rename.view'
+const PATH_KEY = 'gallery.rename.path'
 
 export function RenamePage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const path = searchParams.get('path') ?? ''
+  const queryPath = searchParams.get('path') ?? ''
+
+  // 从其他导航项返回或点击当前导航项时 URL 可能不再携带 path，用上次浏览的目录兜底
+  const [lastPath, setLastPath] = useState(
+    () => queryPath || (window.localStorage.getItem(PATH_KEY) ?? ''),
+  )
+  const path = queryPath || lastPath
 
   const [roots, setRoots] = useState<RootsResponse | null>(null)
   const [rootsError, setRootsError] = useState<string | null>(null)
@@ -54,14 +64,32 @@ export function RenamePage() {
   const [activeName, setActiveName] = useState<string | null>(null)
   const [viewerEntry, setViewerEntry] = useState<FsEntry | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [viewerDeleteOpen, setViewerDeleteOpen] = useState(false)
   const [singleTarget, setSingleTarget] = useState<string | null>(null)
   const [stats, setStats] = useState<Map<string, StatItem>>(new Map())
-  const [undoing, setUndoing] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
 
   const lastIndexRef = useRef<number | null>(null)
   const fetchedRef = useRef(new Set<string>())
   const inflightRef = useRef(new Set<string>())
+  const pendingSelectionRef = useRef<{ dir: string; name: string } | null>(null)
+
+  useEffect(() => {
+    if (queryPath) setLastPath(queryPath)
+  }, [queryPath])
+
+  useEffect(() => {
+    if (queryPath || !lastPath) return
+
+    const params = new URLSearchParams(searchParams)
+    params.set('path', lastPath)
+    setSearchParams(params, { replace: true })
+  }, [queryPath, lastPath, searchParams, setSearchParams])
+
+  useEffect(() => {
+    if (path) window.localStorage.setItem(PATH_KEY, path)
+  }, [path])
 
   useEffect(() => {
     api
@@ -91,11 +119,20 @@ export function RenamePage() {
       .then((data) => {
         if (cancelled) return
         setListing(data)
-        setSelected(new Set())
-        lastIndexRef.current = null
+
+        const pending = pendingSelectionRef.current
+        pendingSelectionRef.current = null
+        if (pending && pending.dir === data.path && data.entries.some((entry) => entry.name === pending.name)) {
+          setSelected(new Set([pending.name]))
+          lastIndexRef.current = data.entries.findIndex((entry) => entry.name === pending.name)
+        } else {
+          setSelected(new Set())
+          lastIndexRef.current = null
+        }
       })
       .catch((caught) => {
         if (cancelled) return
+        pendingSelectionRef.current = null
         setListing(null)
         setSelected(new Set())
         setError(caught instanceof ApiError ? caught.message : '无法读取该目录')
@@ -220,6 +257,15 @@ export function RenamePage() {
     })
   }, [entries, query, extension, sortKey, sortDir, stats, currentDir])
 
+  const viewerEntries = useMemo(
+    () =>
+      displayEntries.filter(
+        (entry) =>
+          entry.type === 'file' && (isImageFile(entry.extension) || isVideoFile(entry.extension)),
+      ),
+    [displayEntries],
+  )
+
   const effectiveSelected = useMemo(() => {
     const next = new Set(selected)
     if (activeEntry && displayEntries.some((entry) => entry.name === activeEntry.name)) {
@@ -241,32 +287,88 @@ export function RenamePage() {
 
   const handleToggleSelect = useCallback(
     (entry: FsEntry, index: number, event: ReactMouseEvent) => {
-      if (entry.type === 'directory') return
+      if (event.shiftKey && lastIndexRef.current !== null) {
+        const start = Math.min(lastIndexRef.current, index)
+        const end = Math.max(lastIndexRef.current, index)
+
+        setSelected((previous) => {
+          const next = new Set(previous)
+          for (let cursor = start; cursor <= end; cursor += 1) {
+            const item = displayEntries[cursor]
+            if (item) next.add(item.name)
+          }
+          return next
+        })
+        return
+      }
+
+      const wasSelected = selected.has(entry.name) || activeName === entry.name
 
       setSelected((previous) => {
         const next = new Set(previous)
-
-        if (event.shiftKey && lastIndexRef.current !== null) {
-          const start = Math.min(lastIndexRef.current, index)
-          const end = Math.max(lastIndexRef.current, index)
-          for (let cursor = start; cursor <= end; cursor += 1) {
-            const item = displayEntries[cursor]
-            if (item && item.type === 'file') next.add(item.name)
-          }
-          return next
-        }
-
-        if (next.has(entry.name)) next.delete(entry.name)
+        if (wasSelected) next.delete(entry.name)
         else next.add(entry.name)
-        lastIndexRef.current = index
         return next
       })
+
+      if (wasSelected && activeName === entry.name) setActiveName(null)
+      lastIndexRef.current = index
     },
-    [displayEntries],
+    [activeName, displayEntries, selected],
   )
 
-  const handleActivate = useCallback((entry: FsEntry) => {
-    if (entry.type === 'file') setActiveName(entry.name)
+  const handleActivate = useCallback(
+    (entry: FsEntry, event: ActivateModifiers) => {
+      const index = displayEntries.findIndex((item) => item.name === entry.name)
+      const additive = event.ctrlKey || event.metaKey
+
+      if (event.shiftKey && lastIndexRef.current !== null && index >= 0) {
+        const start = Math.min(lastIndexRef.current, index)
+        const end = Math.max(lastIndexRef.current, index)
+
+        setSelected((previous) => {
+          const next = new Set(previous)
+          for (let cursor = start; cursor <= end; cursor += 1) {
+            const item = displayEntries[cursor]
+            if (item) next.add(item.name)
+          }
+          return next
+        })
+        if (entry.type === 'file') setActiveName(entry.name)
+        return
+      }
+
+      if (additive) {
+        const wasSelected = selected.has(entry.name) || activeName === entry.name
+
+        setSelected((previous) => {
+          const next = new Set(previous)
+          if (wasSelected) next.delete(entry.name)
+          else next.add(entry.name)
+          return next
+        })
+
+        if (wasSelected) {
+          if (activeName === entry.name) setActiveName(null)
+        } else if (entry.type === 'file') {
+          setActiveName(entry.name)
+        }
+
+        lastIndexRef.current = index
+        return
+      }
+
+      setSelected(new Set([entry.name]))
+      setActiveName(entry.type === 'file' ? entry.name : null)
+      lastIndexRef.current = index
+    },
+    [activeName, displayEntries, selected],
+  )
+
+  const clearSelection = useCallback(() => {
+    setSelected(new Set())
+    setActiveName(null)
+    lastIndexRef.current = null
   }, [])
 
   const handleOpenDirectory = useCallback(
@@ -296,12 +398,19 @@ export function RenamePage() {
     [singleTarget, currentDir],
   )
 
-  const selectedFiles = useMemo(
-    () =>
-      displayEntries
-        .filter((entry) => entry.type === 'file' && effectiveSelected.has(entry.name))
-        .map((entry) => entry.name),
+  const selectedEntries = useMemo(
+    () => displayEntries.filter((entry) => effectiveSelected.has(entry.name)),
     [displayEntries, effectiveSelected],
+  )
+
+  const selectedNames = useMemo(
+    () => selectedEntries.map((entry) => entry.name),
+    [selectedEntries],
+  )
+
+  const singleEntry = useMemo(
+    () => entries.find((entry) => entry.name === singleTarget) ?? null,
+    [entries, singleTarget],
   )
 
   const existingNames = useMemo(
@@ -309,23 +418,96 @@ export function RenamePage() {
     [entries, effectiveSelected],
   )
 
-  const handleUndo = async () => {
-    setUndoing(true)
+  const findNextFileName = useCallback(
+    (deleting: Set<string>) => {
+      let anchor = -1
+      for (let index = 0; index < displayEntries.length; index += 1) {
+        const entry = displayEntries[index]
+        if (entry && deleting.has(entry.name)) anchor = index
+      }
+
+      for (let index = anchor + 1; index < displayEntries.length; index += 1) {
+        const entry = displayEntries[index]
+        if (entry && entry.type === 'file' && !deleting.has(entry.name)) {
+          return entry.name
+        }
+      }
+
+      return null
+    },
+    [displayEntries],
+  )
+
+  const handleDelete = useCallback(async () => {
+    if (!currentDir || selectedNames.length === 0) return
+
+    const deleting = new Set(selectedNames)
+    const nextFile = findNextFileName(deleting)
+
     try {
-      const result = await api.undo()
-      setNotice({ kind: 'ok', text: `已撤销 ${result.renamed.length} 个改名` })
-      setSelected(new Set())
-      setActiveName(null)
+      const result = await api.deleteFiles({ dir: currentDir, names: selectedNames })
+      const firstFailure = result.failed[0]
+
+      if (result.failed.length > 0) {
+        setNotice({
+          kind: 'error',
+          text: `已删除 ${result.deleted.length} 项，${result.failed.length} 项失败${
+            firstFailure ? `（${firstFailure.name}：${firstFailure.message}）` : ''
+          }`,
+        })
+      } else {
+        setNotice({ kind: 'ok', text: `已删除 ${result.deleted.length} 项` })
+      }
+
+      const jumpTarget = result.deleted.length > 0 ? nextFile : null
+      pendingSelectionRef.current = jumpTarget ? { dir: currentDir, name: jumpTarget } : null
+      setSelected(jumpTarget ? new Set([jumpTarget]) : new Set())
+      setActiveName(jumpTarget)
+      lastIndexRef.current = null
+      setViewerEntry(null)
       setReloadToken((value) => value + 1)
     } catch (caught) {
       setNotice({
         kind: 'error',
-        text: caught instanceof ApiError ? caught.message : '撤销失败',
+        text: caught instanceof ApiError ? caught.message : '删除失败',
       })
+      setReloadToken((value) => value + 1)
     } finally {
-      setUndoing(false)
+      setDeleteOpen(false)
     }
-  }
+  }, [currentDir, selectedNames, findNextFileName])
+
+  const handleViewerDelete = useCallback(async () => {
+    if (!currentDir || !viewerEntry) return
+
+    const target = viewerEntry
+    const nextName = findNextFileName(new Set([target.name]))
+    const result = await api.deleteFiles({ dir: currentDir, names: [target.name] })
+
+    const firstFailure = result.failed[0]
+    if (firstFailure) {
+      throw new Error(`${firstFailure.name}：${firstFailure.message}`)
+    }
+    if (result.deleted.length === 0) {
+      throw new Error('删除失败')
+    }
+
+    setNotice({ kind: 'ok', text: '已删除 1 项' })
+    pendingSelectionRef.current = nextName ? { dir: currentDir, name: nextName } : null
+    setSelected(nextName ? new Set([nextName]) : new Set())
+    setActiveName(nextName)
+    lastIndexRef.current = null
+    setReloadToken((value) => value + 1)
+    setViewerDeleteOpen(false)
+
+    const nextEntry = nextName
+      ? (displayEntries.find((entry) => entry.name === nextName) ?? null)
+      : null
+    const previewable = nextEntry
+      ? viewerEntries.some((entry) => entry.name === nextEntry.name)
+      : false
+    setViewerEntry(previewable ? nextEntry : null)
+  }, [currentDir, viewerEntry, findNextFileName, displayEntries, viewerEntries])
 
   const showList = Boolean(path) && !error
 
@@ -344,27 +526,25 @@ export function RenamePage() {
       {showList && listing && (
         <FileToolbar
           total={displayEntries.length}
-          selectedCount={selectedFiles.length}
+          selectedCount={selectedNames.length}
           search={query}
           extension={extension}
           extensions={extensions}
           sortKey={sortKey}
           sortDir={sortDir}
           view={view}
-          undoing={undoing}
+          refreshing={loading}
           onSearch={setQuery}
           onExtension={setExtension}
           onSort={handleSort}
           onToggleDir={handleToggleDir}
           onView={handleView}
-          onSelectAll={() =>
-            setSelected(new Set(displayEntries.filter((entry) => entry.type === 'file').map((entry) => entry.name)))
-          }
+          onSelectAll={() => setSelected(new Set(displayEntries.map((entry) => entry.name)))}
           onInvert={() =>
             setSelected((previous) => {
               const next = new Set<string>()
               for (const entry of displayEntries) {
-                if (entry.type === 'file' && !previous.has(entry.name)) next.add(entry.name)
+                if (!previous.has(entry.name)) next.add(entry.name)
               }
               return next
             })
@@ -373,9 +553,10 @@ export function RenamePage() {
             setSelected(new Set())
             setActiveName(null)
           }}
-          onOpenSingleRename={() => setSingleTarget(selectedFiles[0] ?? null)}
+          onOpenSingleRename={() => setSingleTarget(selectedNames[0] ?? null)}
           onOpenRename={() => setRenameOpen(true)}
-          onUndo={handleUndo}
+          onDelete={() => setDeleteOpen(true)}
+          onRefresh={() => setReloadToken((value) => value + 1)}
         />
       )}
 
@@ -410,6 +591,7 @@ export function RenamePage() {
               onToggleSelect={handleToggleSelect}
               onOpenDirectory={handleOpenDirectory}
               onVisible={handleVisible}
+              onClearSelection={clearSelection}
             />
           ) : (
             <FileGrid
@@ -423,11 +605,12 @@ export function RenamePage() {
               onToggleSelect={handleToggleSelect}
               onOpenDirectory={handleOpenDirectory}
               onVisible={handleVisible}
+              onClearSelection={clearSelection}
             />
           )}
         </div>
 
-        {activeEntry && (
+        {activeEntry ? (
           <FileDetails
             key={joinPath(currentDir, activeEntry.name)}
             dir={currentDir}
@@ -437,6 +620,14 @@ export function RenamePage() {
             onClose={() => setActiveName(null)}
             onPreview={() => setViewerEntry(activeEntry)}
           />
+        ) : (
+          <aside className="hidden w-[304px] shrink-0 flex-col border-l border-line/70 bg-panel/95 backdrop-blur-sm xl:flex">
+            <div className="flex flex-1 items-center justify-center px-6 text-center">
+              <p className="text-[11.5px] leading-relaxed text-ink-faint">
+                选择文件后可在这里查看详情
+              </p>
+            </div>
+          </aside>
         )}
       </div>
 
@@ -444,14 +635,23 @@ export function RenamePage() {
         open={singleTarget !== null}
         dir={currentDir}
         name={singleTarget ?? ''}
+        kind={singleEntry?.type ?? 'file'}
         onClose={() => setSingleTarget(null)}
         onSubmit={handleSingleRename}
+      />
+
+      <DeleteDialog
+        open={deleteOpen}
+        dir={currentDir}
+        entries={selectedEntries}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
       />
 
       <RenamePanel
         open={renameOpen}
         dir={currentDir}
-        names={selectedFiles}
+        names={selectedNames}
         existingNames={existingNames}
         stats={stats}
         onClose={() => setRenameOpen(false)}
@@ -470,7 +670,29 @@ export function RenamePage() {
           key={joinPath(currentDir, viewerEntry.name)}
           dir={currentDir}
           entry={viewerEntry}
-          onClose={() => setViewerEntry(null)}
+          entries={viewerEntries}
+          onNavigate={(entry) => {
+            if (!viewerDeleteOpen) setViewerEntry(entry)
+          }}
+          onDelete={() => setViewerDeleteOpen(true)}
+          onClose={() => {
+            if (viewerDeleteOpen) return
+            const name = viewerEntry.name
+            setActiveName(name)
+            setSelected(new Set([name]))
+            lastIndexRef.current = displayEntries.findIndex((item) => item.name === name)
+            setViewerEntry(null)
+          }}
+        />
+      )}
+
+      {viewerDeleteOpen && viewerEntry && (
+        <DeleteDialog
+          open
+          dir={currentDir}
+          entries={[viewerEntry]}
+          onClose={() => setViewerDeleteOpen(false)}
+          onConfirm={handleViewerDelete}
         />
       )}
 

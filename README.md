@@ -65,6 +65,7 @@ pnpm typecheck    # 全量类型检查
 | `GET /api/fs/roots` | 可用盘符、常用目录与缩略图能力 |
 | `GET /api/fs/list?path=&hidden=` | 目录列表，只返回名称与类型 |
 | `POST /api/fs/stats` | 批量读取大小与时间，单批最多 200 条 |
+| `POST /api/fs/delete` | 删除当前目录中的选中文件或文件夹（文件夹递归删除），请求体为 `{ dir, names }` |
 | `GET /api/fs/raw?path=` | 原文件流，支持 `Range` |
 | `GET /api/fs/thumb?path=&w=` | 缩略图，带磁盘缓存 |
 
@@ -73,7 +74,6 @@ pnpm typecheck    # 全量类型检查
 运行时缓存目录位于仓库根目录：
 
 - `data/thumbs/`：缩略图缓存，文件名是 `路径 + mtime + 大小 + 宽度` 的哈希
-- `data/rename-log/`：重命名操作日志
 
 ## 视频缩略图与 FFmpeg
 
@@ -98,21 +98,10 @@ FFMPEG_PATH=/usr/bin/ffmpeg pnpm dev
 
 | 接口 | 说明 |
 | --- | --- |
-| `POST /api/rename/apply` | 按规则重命名，服务端重新计算并校验目标名 |
-| `POST /api/rename/single` | 直接重命名单个文件，请求体为 `{ dir, from, to }` |
-| `POST /api/rename/undo` | 撤销最近一次成功的操作 |
-| `GET /api/rename/history?limit=` | 最近的执行记录 |
+| `POST /api/rename/apply` | 按规则重命名文件或文件夹，服务端重新计算并校验目标名 |
+| `POST /api/rename/single` | 直接重命名单个文件或文件夹，请求体为 `{ dir, from, to }` |
 
 `apply` 的请求体为 `{ dir, names, operations, strategy }`，`strategy` 取 `block | skip | auto-index`。
-
-每次成功执行都会追加一条记录到 `data/rename-log/<YYYY-MM-DD>.jsonl`：
-
-- `id`、`at`、`dir`
-- `pairs`：`{ from, to }` 数组
-- `status`：`applied` 或 `undone`
-- `undoOf`：撤销记录指向的原操作 id
-
-撤销按反向映射执行，并同样遵循"交换需要中间名"的规则。
 
 ## 设计令牌
 

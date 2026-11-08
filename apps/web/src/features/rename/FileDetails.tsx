@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Check, Copy, Eye, File, Play, X } from 'lucide-react'
+import { Check, Copy, Eye, File, Maximize, Play, X } from 'lucide-react'
 
 import { cn } from '@/lib/cn'
 import { joinPath, rawUrl, thumbUrl } from '@/lib/api'
@@ -113,7 +113,17 @@ export function FileDetails({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <div className="relative flex h-[184px] items-center justify-center overflow-hidden rounded-xl border border-line/70 bg-[linear-gradient(160deg,rgba(139,92,246,0.08),rgba(34,211,238,0.04))]">
+        <button
+          type="button"
+          onClick={onPreview}
+          disabled={!canPreview}
+          title={canPreview ? (kind === 'video' ? '播放视频' : kind === 'image' ? '查看大图' : '打开预览') : undefined}
+          aria-label={canPreview ? (kind === 'video' ? '播放视频' : kind === 'image' ? '查看大图' : '打开预览') : undefined}
+          className={cn(
+            'group relative flex h-[184px] w-full items-center justify-center overflow-hidden rounded-xl border border-line/70 bg-[linear-gradient(160deg,rgba(139,92,246,0.08),rgba(34,211,238,0.04))]',
+            canPreview ? 'cursor-pointer transition hover:border-brand/50' : 'cursor-default',
+          )}
+        >
           {thumbnailSrc && !thumbFailed ? (
             <img
               src={thumbnailSrc}
@@ -129,34 +139,44 @@ export function FileDetails({
           )}
 
           {kind === 'video' && thumbnailSrc && !thumbFailed && (
-            <span className="absolute inset-0 grid place-items-center bg-black/20">
+            <span className="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/30">
               <span className="grid size-10 place-items-center rounded-full bg-black/55 text-white backdrop-blur">
                 <Play className="size-4 translate-x-px fill-current" />
               </span>
             </span>
           )}
-        </div>
+
+          {kind === 'image' && canPreview && (
+            <span className="pointer-events-none absolute inset-0 grid place-items-center">
+              <span className="grid size-10 place-items-center rounded-full border border-white/30 bg-black/45 text-white shadow-[0_8px_24px_-10px_rgba(0,0,0,0.9)] backdrop-blur transition duration-200 group-hover:scale-105 group-hover:bg-black/60">
+                <Maximize className="size-4" strokeWidth={2.2} />
+              </span>
+            </span>
+          )}
+        </button>
 
         {kind === 'video' && !videoThumbAvailable && (
           <p className="mt-2 text-[10.5px] leading-relaxed text-ink-faint">
-            当前环境没有 ffmpeg，无法生成视频缩略图，但仍可播放原文件。
+            当前环境没有 ffmpeg，无法生成视频缩略图，点击缩略图仍可播放原文件。
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={onPreview}
-          disabled={!canPreview}
-          className={cn(
-            'mt-3 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border text-[12px] transition',
-            canPreview
-              ? 'border-brand/40 bg-brand/10 text-brand-soft hover:border-brand/60 hover:bg-brand/15'
-              : 'cursor-not-allowed border-line bg-panel-2/40 text-ink-faint opacity-60',
-          )}
-        >
-          <Eye className="size-3.5" />
-          {PREVIEW_LABEL[kind]}
-        </button>
+        {kind !== 'video' && kind !== 'image' && (
+          <button
+            type="button"
+            onClick={onPreview}
+            disabled={!canPreview}
+            className={cn(
+              'mt-3 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border text-[12px] transition',
+              canPreview
+                ? 'border-brand/40 bg-brand/10 text-brand-soft hover:border-brand/60 hover:bg-brand/15'
+                : 'cursor-not-allowed border-line bg-panel-2/40 text-ink-faint opacity-60',
+            )}
+          >
+            <Eye className="size-3.5" />
+            {PREVIEW_LABEL[kind]}
+          </button>
+        )}
 
         <div className="mt-4 space-y-3">
           <div>
@@ -195,7 +215,7 @@ export function FileDetails({
         </div>
 
         <p className="mt-4 text-[10.5px] leading-relaxed text-ink-faint">
-          单击文件只会临时选中当前项，切换文件后即取消；需要批量操作时请勾选左侧复选框。点击上方按钮预览，按 Esc 关闭。
+          单击文件会清空其他选择并只选中当前项；再次单击不会取消，按 Ctrl 单击或点击复选框可取消。按住 Shift 可连续选择，点击空白处清空选择。点击上方按钮预览，按 Esc 关闭。
         </p>
       </div>
     </aside>

@@ -18,7 +18,7 @@ export function PreviewTable({ rows }: PreviewTableProps) {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rows.length === 0 && (
           <div className="px-4 py-8 text-center text-[12px] text-ink-faint">
-            没有可以预览的文件。
+            没有可以预览的项目。
           </div>
         )}
 

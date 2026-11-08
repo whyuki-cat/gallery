@@ -13,12 +13,6 @@ import type { FastifyPluginAsync } from 'fastify'
 import { HttpError } from '../lib/errors.js'
 import { assertNotSymbolicLink, resolveUserPath } from '../lib/paths.js'
 import { executeRename } from '../lib/rename-executor.js'
-import {
-  appendRecord,
-  createRecord,
-  findLatestUndoable,
-  readRecords,
-} from '../lib/rename-journal.js'
 
 interface ApplyBody {
   dir?: unknown
@@ -31,10 +25,6 @@ interface SingleBody {
   dir?: unknown
   from?: unknown
   to?: unknown
-}
-
-interface HistoryQuery {
-  limit?: string
 }
 
 const STRATEGIES: ConflictStrategy[] = ['block', 'skip', 'auto-index']
@@ -67,15 +57,15 @@ export const renameRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const dirents = await readdir(dir, { withFileTypes: true })
-    const fileNames = new Set(
+    const availableNames = new Set(
       dirents
-        .filter((dirent) => dirent.isFile() && !dirent.isSymbolicLink())
+        .filter((dirent) => !dirent.isSymbolicLink() && (dirent.isFile() || dirent.isDirectory()))
         .map((dirent) => dirent.name),
     )
 
-    const missing = names.filter((name) => !fileNames.has(name))
+    const missing = names.filter((name) => !availableNames.has(name))
     if (missing.length > 0) {
-      throw new HttpError(409, 'stale-selection', `以下文件已不存在：${missing.join('、')}`)
+      throw new HttpError(409, 'stale-selection', `以下文件或文件夹已不存在：${missing.join('、')}`)
     }
 
     const stats = await Promise.all(
@@ -85,13 +75,14 @@ export const renameRoutes: FastifyPluginAsync = async (app) => {
     const engineIssues: RenameIssue[] = []
 
     const entries = names.map((name, index) => {
+      const info = stats[index]
       const result = applyRules(
         name,
         index,
         {
           parentName,
-          size: stats[index]?.size,
-          date: stats[index]?.mtime,
+          size: info?.isFile() ? info.size : undefined,
+          date: info?.mtime,
         },
         operations,
       )
@@ -143,10 +134,6 @@ export const renameRoutes: FastifyPluginAsync = async (app) => {
 
     const result = await executeRename({ dir, pairs })
 
-    if (result.failed.length === 0) {
-      await appendRecord(createRecord(dir, result.renamed))
-    }
-
     return { ...result, skipped, warnings: engineIssues }
   })
 
@@ -173,14 +160,14 @@ export const renameRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const dirents = await readdir(dir, { withFileTypes: true })
-    const fileNames = new Set(
+    const availableNames = new Set(
       dirents
-        .filter((dirent) => dirent.isFile() && !dirent.isSymbolicLink())
+        .filter((dirent) => !dirent.isSymbolicLink() && (dirent.isFile() || dirent.isDirectory()))
         .map((dirent) => dirent.name),
     )
 
-    if (!fileNames.has(from)) {
-      throw new HttpError(409, 'stale-selection', '文件已不存在，请刷新后重试')
+    if (!availableNames.has(from)) {
+      throw new HttpError(409, 'stale-selection', '文件或文件夹已不存在，请刷新后重试')
     }
 
     const existingNames = dirents
@@ -204,33 +191,6 @@ export const renameRoutes: FastifyPluginAsync = async (app) => {
 
     const result = await executeRename({ dir, pairs: [{ from, to }] })
 
-    if (result.failed.length === 0) {
-      await appendRecord(createRecord(dir, result.renamed))
-    }
-
     return { ...result, skipped: [] }
-  })
-
-  app.post('/undo', async () => {
-    const record = await findLatestUndoable()
-    if (!record) {
-      throw new HttpError(404, 'nothing-to-undo', '没有可撤销的操作')
-    }
-
-    const reverse = record.pairs.map((pair) => ({ from: pair.to, to: pair.from }))
-    const result = await executeRename({ dir: record.dir, pairs: reverse })
-
-    if (result.failed.length === 0) {
-      await appendRecord(createRecord(record.dir, reverse, 'undone', record.id))
-    }
-
-    return { ...result, undone: record.id, dir: record.dir }
-  })
-
-  app.get('/history', async (request) => {
-    const query = request.query as HistoryQuery
-    const requested = Number(query.limit ?? '20')
-    const limit = Math.min(200, Math.max(1, Number.isFinite(requested) ? requested : 20))
-    return { items: await readRecords(limit) }
   })
 }

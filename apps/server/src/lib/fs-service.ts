@@ -1,4 +1,4 @@
-import { access, lstat, readdir } from 'node:fs/promises'
+import { access, lstat, readdir, rm, unlink } from 'node:fs/promises'
 import { homedir, platform } from 'node:os'
 import { basename, dirname, extname, join } from 'node:path'
 
@@ -28,6 +28,11 @@ export interface DirectoryListing {
   path: string
   parent: string | null
   entries: FsEntry[]
+}
+
+export interface DeleteResult {
+  deleted: string[]
+  failed: Array<{ name: string; message: string }>
 }
 
 export interface StatResult {
@@ -141,6 +146,68 @@ export async function listDirectory(
     parent: parent === dir ? null : parent,
     entries,
   }
+}
+
+export async function deleteFiles(input: unknown, pathNames: string[]): Promise<DeleteResult> {
+  const dir = resolveUserPath(input)
+  await assertNotSymbolicLink(dir)
+
+  const names = [...new Set(pathNames)]
+  if (names.length === 0) {
+    throw new HttpError(400, 'empty-selection', '请先选择需要删除的文件或文件夹')
+  }
+
+  for (const name of names) {
+    if (name.trim() === '' || name.includes('/') || name.includes('\\') || name === '.' || name === '..') {
+      throw new HttpError(400, 'invalid-name', `非法的文件名：${name}`)
+    }
+  }
+
+  const dirents = await readdir(dir, { withFileTypes: true })
+  const entries = new Map(dirents.map((dirent) => [dirent.name, dirent]))
+
+  const invalid = names.filter((name) => {
+    const entry = entries.get(name)
+    return entry !== undefined && ((!entry.isFile() && !entry.isDirectory()) || entry.isSymbolicLink())
+  })
+  if (invalid.length > 0) {
+    throw new HttpError(400, 'invalid-target', `只能删除普通文件或文件夹：${invalid.join('、')}`)
+  }
+
+  const missing = names.filter((name) => !entries.has(name))
+  if (missing.length > 0) {
+    throw new HttpError(409, 'stale-selection', `以下文件已不存在：${missing.join('、')}`)
+  }
+
+  const deleted: string[] = []
+  const failed: DeleteResult['failed'] = []
+
+  for (const name of names) {
+    const target = join(dir, name)
+    const entry = entries.get(name)
+
+    try {
+      if (entry?.isDirectory()) {
+        await rm(target, { recursive: true })
+      } else {
+        await unlink(target)
+      }
+      deleted.push(name)
+    } catch (error) {
+      failed.push({ name, message: deleteErrorMessage(error) })
+    }
+  }
+
+  return { deleted, failed }
+}
+
+function deleteErrorMessage(error: unknown): string {
+  const code = (error as NodeJS.ErrnoException).code
+  if (code === 'ENOENT') return '文件或文件夹已不存在'
+  if (code === 'EACCES' || code === 'EPERM') return '没有删除权限'
+  if (code === 'EBUSY') return '文件或文件夹正被其他程序占用'
+  if (code === 'ENOTEMPTY') return '文件夹不为空或正被占用'
+  return error instanceof Error ? error.message : '删除失败'
 }
 
 export async function statPaths(paths: string[]): Promise<StatResult[]> {

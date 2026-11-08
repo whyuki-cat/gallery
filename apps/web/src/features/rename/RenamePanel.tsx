@@ -58,7 +58,11 @@ export function RenamePanel({
       const result = applyRules(
         name,
         index,
-        { parentName, size: stat?.size ?? undefined, date: stat?.mtimeMs ?? undefined },
+        {
+          parentName,
+          size: stat?.directory ? undefined : stat?.size ?? undefined,
+          date: stat?.mtimeMs ?? undefined,
+        },
         operations,
       )
       engineIssues.set(name, result.issues)
@@ -120,11 +124,11 @@ export function RenamePanel({
           kind: 'error',
           text: `重命名未完成：${failedCount} 项失败${first ? `（${first.from}：${first.message}）` : ''}`,
         })
-        setError(result.rolledBack ? '已回滚本次改动。' : '部分文件可能未恢复，请检查后手动处理。')
+        setError(result.rolledBack ? '已回滚本次改动。' : '部分项目可能未恢复，请检查后手动处理。')
       } else {
         onApplied({
           kind: 'ok',
-          text: `已重命名 ${result.renamed.length} 个文件${skippedCount > 0 ? `，跳过 ${skippedCount} 项` : ''}`,
+          text: `已重命名 ${result.renamed.length} 项${skippedCount > 0 ? `，跳过 ${skippedCount} 项` : ''}`,
         })
         onClose()
       }
@@ -145,7 +149,7 @@ export function RenamePanel({
           <div className="min-w-0">
             <div className="text-[13.5px] font-semibold text-ink">批量重命名</div>
             <div className="truncate text-[11px] text-ink-faint" title={dir}>
-              {dir} · 已选 {names.length} 个文件
+              {dir} · 已选 {names.length} 项
             </div>
           </div>
 
@@ -237,8 +241,8 @@ export function RenamePanel({
                 确认执行？
               </div>
               <p className="mt-2 text-[12px] leading-relaxed text-ink-dim">
-                将重命名 <span className="font-medium text-ink">{preview.changed}</span> 个文件，
-                策略为「{STRATEGY_LABEL[strategy]}」。执行后可通过工具栏的撤销恢复。
+                将重命名 <span className="font-medium text-ink">{preview.changed}</span> 项，
+                策略为「{STRATEGY_LABEL[strategy]}」。执行后将直接修改磁盘上的名称，请确认预览无误。
               </p>
 
               <div className="mt-4 flex justify-end gap-2">

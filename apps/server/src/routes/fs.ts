@@ -4,7 +4,7 @@ import { lstat } from 'node:fs/promises'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { HttpError } from '../lib/errors.js'
-import { listDirectory, listRoots, statPaths } from '../lib/fs-service.js'
+import { deleteFiles, listDirectory, listRoots, statPaths } from '../lib/fs-service.js'
 import { mimeForPath } from '../lib/mime.js'
 import { resolveUserPath } from '../lib/paths.js'
 import { getThumbnail, hasFfmpeg } from '../lib/thumbs.js'
@@ -16,6 +16,11 @@ interface ListQuery {
 
 interface StatsBody {
   paths?: unknown
+}
+
+interface DeleteBody {
+  dir?: unknown
+  names?: unknown
 }
 
 interface RawQuery {
@@ -46,6 +51,15 @@ export const fsRoutes: FastifyPluginAsync = async (app) => {
       : []
 
     return { items: await statPaths(paths) }
+  })
+
+  app.post('/delete', async (request) => {
+    const body = (request.body ?? {}) as DeleteBody
+    const names = Array.isArray(body.names)
+      ? body.names.filter((value): value is string => typeof value === 'string')
+      : []
+
+    return deleteFiles(body.dir, names)
   })
 
   app.get('/raw', async (request, reply) => {

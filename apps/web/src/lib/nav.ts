@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { FilePenLine, Library, Scissors, Settings2 } from 'lucide-react'
+import { FolderOpen, Library, Scissors, Settings2 } from 'lucide-react'
 
 export interface NavItem {
   to: string
@@ -23,9 +23,9 @@ export const navSections: NavSection[] = [
     items: [
       {
         to: '/tools/rename',
-        label: '文件重命名',
-        icon: FilePenLine,
-        description: '批量识别并规范化媒体文件名，支持模板预览与批量执行。',
+        label: '文件管理',
+        icon: FolderOpen,
+        description: '浏览本地目录，批量重命名、删除与预览媒体文件。',
       },
       {
         to: '/tools/trim',

@@ -6,12 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildApp } from '../src/app.js'
 import { executeRename } from '../src/lib/rename-executor.js'
-import {
-  appendRecord,
-  createRecord,
-  findLatestUndoable,
-  readRecords,
-} from '../src/lib/rename-journal.js'
 
 let dir = ''
 
@@ -95,60 +89,6 @@ describe('executeRename', () => {
   })
 })
 
-describe('rename journal', () => {
-  it('writes and reads records newest first', async () => {
-    const logDir = join(dir, 'log')
-    const first = createRecord('C:\\media', [{ from: 'a.txt', to: 'b.txt' }])
-    const second = createRecord('C:\\media', [{ from: 'c.txt', to: 'd.txt' }])
-
-    await appendRecord(first, logDir)
-    await appendRecord(second, logDir)
-
-    const records = await readRecords(10, logDir)
-    expect(records.map((record) => record.id)).toEqual([second.id, first.id])
-  })
-
-  it('returns the latest record that is still undoable', async () => {
-    const logDir = join(dir, 'log')
-    const first = createRecord('C:\\media', [{ from: 'a.txt', to: 'b.txt' }])
-    const second = createRecord('C:\\media', [{ from: 'c.txt', to: 'd.txt' }])
-
-    await appendRecord(first, logDir)
-    await appendRecord(second, logDir)
-
-    expect((await findLatestUndoable(logDir))?.id).toBe(second.id)
-
-    await appendRecord(createRecord('C:\\media', [], 'undone', second.id), logDir)
-
-    expect((await findLatestUndoable(logDir))?.id).toBe(first.id)
-  })
-
-  it('returns null when nothing can be undone', async () => {
-    expect(await findLatestUndoable(join(dir, 'empty'))).toBeNull()
-  })
-})
-
-describe('undo semantics', () => {
-  it('restores original names by reversing the recorded pairs', async () => {
-    await writeFile(join(dir, 'a.txt'), 'A')
-    await writeFile(join(dir, 'b.txt'), 'B')
-
-    const applied = await executeRename({
-      dir,
-      pairs: [
-        { from: 'a.txt', to: 'x.txt' },
-        { from: 'b.txt', to: 'y.txt' },
-      ],
-    })
-
-    const reverse = applied.renamed.map((pair) => ({ from: pair.to, to: pair.from }))
-    const undone = await executeRename({ dir, pairs: reverse })
-
-    expect(undone.failed).toEqual([])
-    expect(await names()).toEqual(['a.txt', 'b.txt'])
-  })
-})
-
 describe('single rename route', () => {
   it('rejects a file that no longer exists', async () => {
     process.env.LOG_LEVEL = 'silent'
@@ -184,6 +124,59 @@ describe('single rename route', () => {
     expect(response.statusCode).toBe(409)
     expect(response.json().error).toBe('conflicts')
     expect(await names()).toEqual(['a.txt', 'b.txt'])
+
+    await app.close()
+  })
+})
+
+describe('folder rename', () => {
+  it('renames a folder through the single route', async () => {
+    process.env.LOG_LEVEL = 'silent'
+    const app = await buildApp()
+
+    await mkdir(join(dir, 'old'))
+    await writeFile(join(dir, 'old', 'keep.txt'), 'K')
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/rename/single',
+      headers: { 'x-gallery-client': '1' },
+      payload: { dir, from: 'old', to: 'new' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().renamed).toEqual([{ from: 'old', to: 'new' }])
+    expect(await names()).toEqual(['new'])
+    expect(await readFile(join(dir, 'new', 'keep.txt'), 'utf8')).toBe('K')
+
+    await app.close()
+  })
+
+  it('renames folders in a batch through the apply route', async () => {
+    process.env.LOG_LEVEL = 'silent'
+    const app = await buildApp()
+
+    await mkdir(join(dir, 'one'))
+    await mkdir(join(dir, 'two'))
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/rename/apply',
+      headers: { 'x-gallery-client': '1' },
+      payload: {
+        dir,
+        names: ['one', 'two'],
+        operations: [{ id: '1', type: 'affix', side: 'prefix', text: 'v-' }],
+        strategy: 'block',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().renamed).toEqual([
+      { from: 'one', to: 'v-one' },
+      { from: 'two', to: 'v-two' },
+    ])
+    expect(await names()).toEqual(['v-one', 'v-two'])
 
     await app.close()
   })

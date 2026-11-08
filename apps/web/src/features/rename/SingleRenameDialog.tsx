@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { FilePenLine, Loader2 } from 'lucide-react'
+import { FilePenLine, Folder, Loader2 } from 'lucide-react'
 
 import { joinPath } from '@/lib/api'
 
@@ -7,6 +7,7 @@ interface SingleRenameDialogProps {
   open: boolean
   dir: string
   name: string
+  kind: 'file' | 'directory'
   onClose: () => void
   onSubmit: (nextName: string) => Promise<void>
 }
@@ -15,6 +16,7 @@ export function SingleRenameDialog({
   open,
   dir,
   name,
+  kind,
   onClose,
   onSubmit,
 }: SingleRenameDialogProps) {
@@ -76,10 +78,16 @@ export function SingleRenameDialog({
       <div className="animate-rise w-full max-w-2xl rounded-2xl border border-line-strong bg-panel p-6 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]">
         <div className="flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-panel-2 text-brand-soft">
-            <FilePenLine className="size-5" strokeWidth={1.9} />
+            {kind === 'directory' ? (
+              <Folder className="size-5" strokeWidth={1.9} />
+            ) : (
+              <FilePenLine className="size-5" strokeWidth={1.9} />
+            )}
           </span>
           <div className="min-w-0 pt-0.5">
-            <h2 className="text-[15px] font-semibold text-ink">重命名文件</h2>
+            <h2 className="text-[15px] font-semibold text-ink">
+              {kind === 'directory' ? '重命名文件夹' : '重命名文件'}
+            </h2>
             <p className="mt-0.5 truncate text-[11.5px] text-ink-faint" title={fullPath}>
               {fullPath}
             </p>

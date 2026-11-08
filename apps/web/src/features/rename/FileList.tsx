@@ -6,7 +6,7 @@ import { File, Folder } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { joinPath } from '@/lib/api'
 import { fileIconTone, formatDate, formatSize, isImageFile } from '@/features/rename/format'
-import type { FsEntry, StatItem } from '@/features/rename/types'
+import type { ActivateModifiers, FsEntry, StatItem } from '@/features/rename/types'
 import type { SortKey } from '@/features/rename/FileToolbar'
 
 interface FileListProps {
@@ -18,10 +18,11 @@ interface FileListProps {
   sortKey: SortKey
   sortDir: 'asc' | 'desc'
   onSort: (key: SortKey) => void
-  onActivate: (entry: FsEntry) => void
+  onActivate: (entry: FsEntry, modifiers: ActivateModifiers) => void
   onToggleSelect: (entry: FsEntry, index: number, event: ReactMouseEvent) => void
   onOpenDirectory: (entry: FsEntry) => void
   onVisible: (paths: string[]) => void
+  onClearSelection: () => void
 }
 
 export function FileList({
@@ -37,6 +38,7 @@ export function FileList({
   onToggleSelect,
   onOpenDirectory,
   onVisible,
+  onClearSelection,
 }: FileListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -60,6 +62,13 @@ export function FileList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleKey, dir, entries])
 
+  useEffect(() => {
+    if (!activeName) return
+    const index = entries.findIndex((entry) => entry.name === activeName)
+    if (index < 0) return
+    virtualizer.scrollToIndex(index, { align: 'auto' })
+  }, [activeName, entries, virtualizer])
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-line/60 px-6 py-1.5 text-[11px] text-ink-faint">
@@ -70,7 +79,13 @@ export function FileList({
         <HeaderButton label="类型" active={sortKey === 'type'} dir={sortDir} onClick={() => onSort('type')} className="w-10 text-right" />
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 select-none overflow-y-auto">
+      <div
+        ref={scrollRef}
+        onClick={(event) => {
+          if (!(event.target as HTMLElement).closest('[data-entry]')) onClearSelection()
+        }}
+        className="min-h-0 flex-1 select-none overflow-y-auto"
+      >
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {virtualItems.map((virtualItem) => {
             const entry = entries[virtualItem.index]
@@ -83,6 +98,7 @@ export function FileList({
             return (
               <div
                 key={entry.name}
+                data-entry
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -102,32 +118,28 @@ export function FileList({
                         : 'hover:bg-hover',
                   )}
                 >
-                  {entry.type === 'file' ? (
-                    <button
-                      type="button"
-                      onClick={(event) => onToggleSelect(entry, virtualItem.index, event)}
-                      title={isSelected ? '取消选择' : '选择'}
-                      aria-label={isSelected ? `取消选择 ${entry.name}` : `选择 ${entry.name}`}
-                      aria-pressed={isSelected}
-                      className={cn(
-                        'grid size-4 shrink-0 cursor-pointer place-items-center rounded border transition',
-                        isSelected
-                          ? 'border-brand bg-brand text-white'
-                          : 'border-line-strong bg-panel-2 text-transparent hover:border-brand/60',
-                      )}
-                    >
-                      <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.4">
-                        <path d="M2.5 6.2 5 8.7l4.5-5.4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <span className="size-4 shrink-0" />
-                  )}
+                  <button
+                    type="button"
+                    onClick={(event) => onToggleSelect(entry, virtualItem.index, event)}
+                    title={isSelected ? '取消选择' : '选择'}
+                    aria-label={isSelected ? `取消选择 ${entry.name}` : `选择 ${entry.name}`}
+                    aria-pressed={isSelected}
+                    className={cn(
+                      'grid size-4 shrink-0 cursor-pointer place-items-center rounded border transition',
+                      isSelected
+                        ? 'border-brand bg-brand text-white'
+                        : 'border-line-strong bg-panel-2 text-transparent hover:border-brand/60',
+                    )}
+                  >
+                    <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.4">
+                      <path d="M2.5 6.2 5 8.7l4.5-5.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
 
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => onActivate(entry)}
+                    onClick={(event) => onActivate(entry, event)}
                     onDoubleClick={
                       entry.type === 'directory'
                         ? (event) => {
@@ -139,7 +151,7 @@ export function FileList({
                     onKeyDown={(event) => {
                       if (event.key !== 'Enter') return
                       if (entry.type === 'directory') onOpenDirectory(entry)
-                      else onActivate(entry)
+                      else onActivate(entry, event)
                     }}
                     className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-2"
                   >

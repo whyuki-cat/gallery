@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, CheckSquare, Grid2X2, List, Pencil, RotateCcw, Search, Square, Wand2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckSquare, Grid2X2, List, Pencil, RefreshCw, Search, Square, Trash2, Wand2 } from 'lucide-react'
 
 import { cn } from '@/lib/cn'
 
@@ -15,7 +15,7 @@ interface FileToolbarProps {
   sortKey: SortKey
   sortDir: 'asc' | 'desc'
   view: ViewMode
-  undoing: boolean
+  refreshing: boolean
   onSearch: (value: string) => void
   onExtension: (value: string) => void
   onSort: (key: SortKey) => void
@@ -26,7 +26,8 @@ interface FileToolbarProps {
   onClear: () => void
   onOpenSingleRename: () => void
   onOpenRename: () => void
-  onUndo: () => void
+  onDelete: () => void
+  onRefresh: () => void
 }
 
 export function FileToolbar({
@@ -38,7 +39,7 @@ export function FileToolbar({
   sortKey,
   sortDir,
   view,
-  undoing,
+  refreshing,
   onSearch,
   onExtension,
   onSort,
@@ -49,7 +50,8 @@ export function FileToolbar({
   onClear,
   onOpenSingleRename,
   onOpenRename,
-  onUndo,
+  onDelete,
+  onRefresh,
 }: FileToolbarProps) {
   const [sortOpen, setSortOpen] = useState(false)
 
@@ -138,12 +140,12 @@ export function FileToolbar({
 
         <button
           type="button"
-          onClick={onUndo}
-          disabled={undoing}
+          onClick={onRefresh}
+          disabled={refreshing}
           className="flex h-8 items-center gap-1.5 rounded-lg border border-line bg-panel-2/60 px-2.5 text-[12px] text-ink-dim transition hover:border-line-strong hover:text-ink disabled:opacity-50"
         >
-          <RotateCcw className={cn('size-3.5', undoing && 'animate-spin')} />
-          撤销
+          <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
+          刷新
         </button>
       </div>
 
@@ -184,9 +186,19 @@ export function FileToolbar({
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
+            onClick={onDelete}
+            disabled={selectedCount === 0}
+            title={selectedCount === 0 ? '请先选择要删除的文件或文件夹' : `删除选中的 ${selectedCount} 项`}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/5 px-3 text-[12.5px] text-rose-200 transition hover:border-rose-400/60 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="size-3.5" />
+            删除
+          </button>
+          <button
+            type="button"
             onClick={onOpenSingleRename}
             disabled={selectedCount !== 1}
-            title={selectedCount === 1 ? '重命名选中的文件' : '请先选择一个文件'}
+            title={selectedCount === 1 ? '重命名选中的文件或文件夹' : '请先选择一个文件或文件夹'}
             className="flex h-8 items-center gap-1.5 rounded-lg border border-line bg-panel-2/60 px-3 text-[12.5px] text-ink-dim transition hover:border-line-strong hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Pencil className="size-3.5" />

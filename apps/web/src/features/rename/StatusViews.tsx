@@ -73,7 +73,7 @@ export function WelcomeView({
       <div className="mb-6">
         <h2 className="text-[16px] font-semibold text-ink">选择一个目录开始</h2>
         <p className="mt-1 text-[12.5px] text-ink-dim">
-          浏览本地文件夹，选中文件后可以按规则批量重命名。
+          浏览本地文件夹，选中文件或文件夹后可以按规则批量重命名。
         </p>
       </div>
 
