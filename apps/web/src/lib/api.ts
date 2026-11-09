@@ -8,6 +8,7 @@ import type {
   SingleRenameRequest,
   StatItem,
 } from '@/features/rename/types'
+import type { TrimExportRequest, TrimExportResponse } from '@/features/trim/types'
 
 export class ApiError extends Error {
   readonly code: string
@@ -90,6 +91,12 @@ export const api = {
 
   renameOne: (body: SingleRenameRequest) =>
     request<ApplyResponse>('/api/rename/single', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  trimExport: (body: TrimExportRequest) =>
+    request<TrimExportResponse>('/api/trim/export', {
       method: 'POST',
       body: JSON.stringify(body),
     }),

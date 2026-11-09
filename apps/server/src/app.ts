@@ -9,6 +9,7 @@ import { HttpError } from './lib/errors.js'
 import { fsRoutes } from './routes/fs.js'
 import { healthRoutes } from './routes/health.js'
 import { renameRoutes } from './routes/rename.js'
+import { trimRoutes } from './routes/trim.js'
 
 /**
  * 生产模式下由后端直接托管前端构建产物，单进程即可运行。
@@ -88,6 +89,7 @@ export async function buildApp() {
   await app.register(healthRoutes, { prefix: '/api' })
   await app.register(fsRoutes, { prefix: '/api/fs' })
   await app.register(renameRoutes, { prefix: '/api/rename' })
+  await app.register(trimRoutes, { prefix: '/api/trim' })
 
   if (existsSync(webDist)) {
     await app.register(fastifyStatic, { root: webDist })

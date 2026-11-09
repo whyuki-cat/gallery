@@ -8,6 +8,7 @@ export interface Location {
 export interface Capabilities {
   thumbnail: boolean
   videoThumbnail: boolean
+  ffmpeg: boolean
 }
 
 export interface RootsResponse {

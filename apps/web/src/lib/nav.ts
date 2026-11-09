@@ -31,7 +31,7 @@ export const navSections: NavSection[] = [
         to: '/tools/trim',
         label: '视频裁剪',
         icon: Scissors,
-        description: '按时间区间截取视频片段，可无损切割或重新编码后导出。',
+        description: '按时间区间截取视频片段，以无损方式逐段或合并导出。',
       },
     ],
   },

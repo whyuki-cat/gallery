@@ -4,10 +4,11 @@ import { lstat } from 'node:fs/promises'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { HttpError } from '../lib/errors.js'
+import { hasFfmpeg } from '../lib/ffmpeg.js'
 import { deleteFiles, listDirectory, listRoots, statPaths } from '../lib/fs-service.js'
 import { mimeForPath } from '../lib/mime.js'
 import { resolveUserPath } from '../lib/paths.js'
-import { getThumbnail, hasFfmpeg } from '../lib/thumbs.js'
+import { getThumbnail } from '../lib/thumbs.js'
 
 interface ListQuery {
   path?: string
@@ -35,7 +36,8 @@ interface ThumbQuery {
 export const fsRoutes: FastifyPluginAsync = async (app) => {
   app.get('/roots', async () => {
     const roots = await listRoots()
-    return { ...roots, capabilities: { thumbnail: true, videoThumbnail: await hasFfmpeg() } }
+    const ffmpeg = await hasFfmpeg()
+    return { ...roots, capabilities: { thumbnail: true, videoThumbnail: ffmpeg, ffmpeg } }
   })
 
   app.get('/list', async (request) => {

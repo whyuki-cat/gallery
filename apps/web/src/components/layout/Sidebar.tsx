@@ -7,7 +7,13 @@ import { cn } from '@/lib/cn'
 const itemBase =
   'group relative flex h-10 items-center gap-3 rounded-2xl border border-transparent px-3 text-[13px] font-medium transition-all duration-200'
 
-export function Sidebar({ collapsed }: { collapsed: boolean }) {
+interface SidebarProps {
+  collapsed: boolean
+  settingsOpen: boolean
+  onOpenSettings: () => void
+}
+
+export function Sidebar({ collapsed, settingsOpen, onOpenSettings }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -72,7 +78,12 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
 
         {/* 底部 */}
         <div className="border-t border-line/60 p-3">
-          <SidebarItem item={settingsItem} collapsed={collapsed} />
+          <SidebarItem
+            item={settingsItem}
+            collapsed={collapsed}
+            active={settingsOpen}
+            onPress={onOpenSettings}
+          />
 
           <div
             className={cn(
@@ -88,7 +99,14 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   )
 }
 
-function SidebarItem({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+interface SidebarItemProps {
+  item: NavItem
+  collapsed: boolean
+  active?: boolean
+  onPress?: () => void
+}
+
+function SidebarItem({ item, collapsed, active = false, onPress }: SidebarItemProps) {
   const Icon = item.icon
 
   if (item.disabled) {
@@ -111,6 +129,38 @@ function SidebarItem({ item, collapsed }: { item: NavItem; collapsed: boolean })
           </>
         )}
       </div>
+    )
+  }
+
+  if (onPress) {
+    return (
+      <button
+        type="button"
+        onClick={onPress}
+        title={collapsed ? item.label : undefined}
+        aria-haspopup="dialog"
+        aria-expanded={active}
+        className={cn(
+          itemBase,
+          'w-full text-left outline-none',
+          collapsed && 'justify-center px-0',
+          active
+            ? 'glass-pill text-ink'
+            : 'text-ink-dim hover:border-white/[0.06] hover:bg-hover hover:text-ink',
+        )}
+      >
+        <Icon
+          className={cn(
+            'size-[18px] shrink-0 transition-colors',
+            active ? 'text-brand-soft' : 'text-ink-faint group-hover:text-ink-dim',
+          )}
+          strokeWidth={1.9}
+        />
+        {!collapsed && <span className="truncate">{item.label}</span>}
+        {!collapsed && active && (
+          <span className="ml-auto size-1.5 rounded-full bg-brand-soft shadow-[0_0_10px_rgba(167,139,250,0.85)]" />
+        )}
+      </button>
     )
   }
 

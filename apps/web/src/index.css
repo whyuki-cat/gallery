@@ -75,7 +75,7 @@
     /* 文字 */
     --color-ink: #17141f;
     --color-ink-dim: #57506b;
-    --color-ink-faint: #8a839c;
+    --color-ink-faint: #726b85;
 
     /* 品牌色 */
     --color-brand: #7c3aed;
@@ -106,6 +106,7 @@
     --color-rose-300: #c0293a;
     --color-emerald-200: #067647;
     --color-emerald-300: #067647;
+    --color-amber-200: #92400e;
     --color-amber-300: #b45309;
   }
 

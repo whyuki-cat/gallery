@@ -3,6 +3,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Outlet, useLocation } from 'react-router-dom'
 
 import { Sidebar } from '@/components/layout/Sidebar'
+import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { cn } from '@/lib/cn'
 import { findNavItem, findNavSection } from '@/lib/nav'
 
@@ -16,6 +17,7 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(
     () => window.localStorage.getItem(STORAGE_KEY) === '1',
   )
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0')
@@ -23,7 +25,11 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar collapsed={collapsed} />
+      <Sidebar
+        collapsed={collapsed}
+        settingsOpen={settingsOpen}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line/70 px-8">
@@ -58,6 +64,8 @@ export function AppShell() {
           </div>
         </main>
       </div>
+
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }
