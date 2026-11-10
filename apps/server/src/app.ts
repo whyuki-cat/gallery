@@ -6,8 +6,11 @@ import fastifyStatic from '@fastify/static'
 import Fastify from 'fastify'
 
 import { HttpError } from './lib/errors.js'
+import { DatabaseService } from './lib/db.js'
+import { MigrationManager } from './lib/migration-service.js'
 import { fsRoutes } from './routes/fs.js'
 import { healthRoutes } from './routes/health.js'
+import { libraryRoutes } from './routes/library.js'
 import { renameRoutes } from './routes/rename.js'
 import { trimRoutes } from './routes/trim.js'
 
@@ -30,11 +33,28 @@ function isLocalOrigin(origin: string): boolean {
   }
 }
 
-export async function buildApp() {
+export async function buildApp(
+  options: { dbPath?: string; initializeDatabase?: boolean } = {},
+) {
   const app = Fastify({
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
     },
+  })
+
+  const database = new DatabaseService(options.dbPath)
+  const migrations = new MigrationManager(database)
+
+  if (options.initializeDatabase) {
+    try {
+      database.get()
+    } catch (error) {
+      app.log.error(error)
+    }
+  }
+
+  app.addHook('onClose', async () => {
+    database.close()
   })
 
   await app.register(cors, {
@@ -90,6 +110,11 @@ export async function buildApp() {
   await app.register(fsRoutes, { prefix: '/api/fs' })
   await app.register(renameRoutes, { prefix: '/api/rename' })
   await app.register(trimRoutes, { prefix: '/api/trim' })
+  await app.register(libraryRoutes, {
+    prefix: '/api/library',
+    database,
+    migrations,
+  })
 
   if (existsSync(webDist)) {
     await app.register(fastifyStatic, { root: webDist })

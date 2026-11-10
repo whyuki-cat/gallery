@@ -1,4 +1,17 @@
 import type {
+  DeleteLibraryRequest,
+  DeleteLibraryResponse,
+  LibraryCreateRequest,
+  LibraryOverview,
+  LibraryUpdateRequest,
+  LibraryView,
+  MigrationStartResponse,
+  MigrationView,
+  SetDeletePasswordRequest,
+  SetMediaRootRequest,
+  StartMigrationRequest,
+} from '@/features/library/types'
+import type {
   ApplyRequest,
   ApplyResponse,
   DeleteRequest,
@@ -100,6 +113,50 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  libraryOverview: () => request<LibraryOverview>('/api/library/overview'),
+
+  setMediaRoot: (body: SetMediaRootRequest) =>
+    request<{ ok: true }>('/api/library/config', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  startMigration: (body: StartMigrationRequest) =>
+    request<MigrationStartResponse>('/api/library/config/migrate', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  migrationStatus: (id: string) =>
+    request<MigrationView>(`/api/library/config/migrate/${encodeURIComponent(id)}`),
+
+  setDeletePassword: (body: SetDeletePasswordRequest) =>
+    request<{ configured: true }>('/api/library/security', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  createLibrary: (body: LibraryCreateRequest) =>
+    request<LibraryView>('/api/library/libraries', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateLibrary: (id: string, body: LibraryUpdateRequest) =>
+    request<LibraryView>(`/api/library/libraries/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  deleteLibrary: (id: string, body: DeleteLibraryRequest) =>
+    request<DeleteLibraryResponse>(
+      `/api/library/libraries/${encodeURIComponent(id)}/delete`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    ),
 }
 
 export function rawUrl(path: string): string {
