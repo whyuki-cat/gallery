@@ -6,9 +6,9 @@ import Database from 'better-sqlite3'
 
 import { HttpError } from './errors.js'
 
-const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
-const SCHEMA_V1 = `
+export const SCHEMA_V1 = `
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -64,6 +64,47 @@ CREATE TABLE migration_items (
 );
 `
 
+export const SCHEMA_V2 = `
+CREATE TABLE works (
+  id TEXT PRIMARY KEY,
+  library_id TEXT NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('movie','short-video-collection','photo-collection')),
+  name TEXT NOT NULL,
+  folder TEXT NOT NULL,
+  folder_key TEXT NOT NULL,
+  year INTEGER,
+  metadata_json TEXT,
+  metadata_error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (library_id, folder_key)
+);
+
+CREATE INDEX idx_works_library_created ON works(library_id, created_at);
+
+CREATE TABLE work_assets (
+  id TEXT PRIMARY KEY,
+  work_id TEXT NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('video','nfo','poster','backdrop','subtitle','extra')),
+  kind TEXT NOT NULL CHECK (kind IN ('video','image','text')),
+  relative_path TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  language TEXT,
+  label TEXT,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  UNIQUE (work_id, relative_path)
+);
+
+CREATE INDEX idx_work_assets_work ON work_assets(work_id, role, position);
+CREATE UNIQUE INDEX idx_work_assets_single_video ON work_assets(work_id) WHERE role = 'video';
+CREATE UNIQUE INDEX idx_work_assets_single_nfo ON work_assets(work_id) WHERE role = 'nfo';
+CREATE UNIQUE INDEX idx_work_assets_single_poster ON work_assets(work_id) WHERE role = 'poster';
+CREATE UNIQUE INDEX idx_work_assets_single_backdrop ON work_assets(work_id) WHERE role = 'backdrop';
+`
+
 export function resolveDatabasePath(explicit?: string): string {
   if (explicit && explicit.trim() !== '') return explicit
   const fromEnv = process.env.GALLERY_DB
@@ -101,7 +142,14 @@ function migrateSchema(db: Database.Database): void {
   if (version < 1) {
     withTransaction(db, () => {
       db.exec(SCHEMA_V1)
-      db.pragma(`user_version = ${CURRENT_SCHEMA_VERSION}`)
+      db.pragma('user_version = 1')
+    })
+  }
+
+  if (version < 2) {
+    withTransaction(db, () => {
+      db.exec(SCHEMA_V2)
+      db.pragma('user_version = 2')
     })
   }
 }

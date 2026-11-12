@@ -8,11 +8,13 @@ import Fastify from 'fastify'
 import { HttpError } from './lib/errors.js'
 import { DatabaseService } from './lib/db.js'
 import { MigrationManager } from './lib/migration-service.js'
+import { WorkImportManager } from './lib/work-import-service.js'
 import { fsRoutes } from './routes/fs.js'
 import { healthRoutes } from './routes/health.js'
 import { libraryRoutes } from './routes/library.js'
 import { renameRoutes } from './routes/rename.js'
 import { trimRoutes } from './routes/trim.js'
+import { worksRoutes } from './routes/works.js'
 
 /**
  * 生产模式下由后端直接托管前端构建产物，单进程即可运行。
@@ -44,10 +46,12 @@ export async function buildApp(
 
   const database = new DatabaseService(options.dbPath)
   const migrations = new MigrationManager(database)
+  const imports = new WorkImportManager(database)
 
   if (options.initializeDatabase) {
     try {
       database.get()
+      await imports.cleanupStale()
     } catch (error) {
       app.log.error(error)
     }
@@ -114,6 +118,11 @@ export async function buildApp(
     prefix: '/api/library',
     database,
     migrations,
+  })
+  await app.register(worksRoutes, {
+    prefix: '/api',
+    database,
+    imports,
   })
 
   if (existsSync(webDist)) {

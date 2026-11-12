@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   HardDrive,
@@ -40,6 +41,7 @@ interface Notice {
 
 export function LibraryPage() {
   const { openSettings } = useSettings()
+  const navigate = useNavigate()
   const [overview, setOverview] = useState<LibraryOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -226,15 +228,27 @@ export function LibraryPage() {
             </div>
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {libraries.map((library) => (
-                  <LibraryCard
-                    key={library.id}
-                    library={library}
-                    onEdit={() => setEditing(library)}
-                    onDelete={() => setDeleteTarget(library)}
-                  />
-                ))}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {libraries.map((library) => {
+                  const firstSource = library.sources[0]
+                  const open =
+                    library.organization === 'collection'
+                      ? () => navigate(`/library/${library.id}/works`)
+                      : firstSource
+                        ? () =>
+                            navigate(`/tools/rename?path=${encodeURIComponent(firstSource)}`)
+                        : undefined
+
+                  return (
+                    <LibraryCard
+                      key={library.id}
+                      library={library}
+                      onOpen={open}
+                      onEdit={() => setEditing(library)}
+                      onDelete={() => setDeleteTarget(library)}
+                    />
+                  )
+                })}
               </div>
             </div>
           )}

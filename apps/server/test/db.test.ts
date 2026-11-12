@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { DatabaseService, withTransaction } from '../src/lib/db.js'
+import { DatabaseService, SCHEMA_V1, withTransaction } from '../src/lib/db.js'
 import { HttpError } from '../src/lib/errors.js'
 
 let dir = ''
@@ -49,9 +49,11 @@ describe('DatabaseService', () => {
         'migration_items',
         'migrations',
         'settings',
+        'work_assets',
+        'works',
       ]),
     )
-    expect(db.pragma('user_version', { simple: true })).toBe(1)
+    expect(db.pragma('user_version', { simple: true })).toBe(2)
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1)
   })
 
@@ -85,6 +87,35 @@ describe('DatabaseService', () => {
 
     const row = db.prepare('SELECT COUNT(*) AS count FROM libraries').get() as { count: number }
     expect(row.count).toBe(0)
+  })
+
+  it('upgrades a v1 database without losing existing rows', () => {
+    const path = join(dir, 'v1.db')
+    const raw = new Database(path)
+    raw.exec(SCHEMA_V1)
+    raw.pragma('user_version = 1')
+    insertLibrary(raw, 'legacy', '旧媒体库')
+    raw.prepare("INSERT INTO settings (key, value) VALUES ('media_root', '/legacy')").run()
+    raw.close()
+
+    service = new DatabaseService(path)
+    const db = service.get()
+    const names = (
+      db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name)
+
+    expect(names).toEqual(expect.arrayContaining(['works', 'work_assets']))
+    expect(db.pragma('user_version', { simple: true })).toBe(2)
+    expect(
+      (db.prepare('SELECT name FROM libraries WHERE id = ?').get('legacy') as { name: string })
+        .name,
+    ).toBe('旧媒体库')
+    expect(
+      (db.prepare("SELECT value FROM settings WHERE key = 'media_root'").get() as { value: string })
+        .value,
+    ).toBe('/legacy')
   })
 
   it('rejects a database from a newer program version', async () => {

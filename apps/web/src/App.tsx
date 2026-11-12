@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppShell } from '@/components/layout/AppShell'
 import { LibraryPage } from '@/pages/library/LibraryPage'
+import { LibraryWorksPage } from '@/pages/library/LibraryWorksPage'
+import { WorkDetailPage } from '@/pages/library/WorkDetailPage'
 import { RenamePage } from '@/pages/tools/RenamePage'
 import { TrimPage } from '@/pages/tools/TrimPage'
 
@@ -16,6 +18,8 @@ export default function App() {
           <Route path="/tools/rename" element={<RenamePage />} />
           <Route path="/tools/trim" element={<TrimPage />} />
           <Route path="/library" element={<LibraryPage />} />
+          <Route path="/library/:libraryId/works" element={<LibraryWorksPage />} />
+          <Route path="/library/:libraryId/works/:workId" element={<WorkDetailPage />} />
           <Route path="*" element={<Navigate to={DEFAULT_ROUTE} replace />} />
         </Route>
       </Routes>
