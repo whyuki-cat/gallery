@@ -1,15 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Film,
-  Loader2,
-  RefreshCw,
-  Search,
-  Upload,
-} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Film, Loader2, RefreshCw, Search, Upload } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import { useBreadcrumbs } from '@/components/layout/breadcrumbs'
 import { api, ApiError } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { CreateWorkDialog } from '@/features/works/CreateWorkDialog'
@@ -32,6 +25,16 @@ export function LibraryWorksPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+
+  useBreadcrumbs(
+    useMemo(
+      () => [
+        { label: '媒体库', to: '/library' },
+        { label: library?.name ?? '作品列表' },
+      ],
+      [library?.name],
+    ),
+  )
 
   const load = useCallback(
     async (silent = false) => {
@@ -77,28 +80,15 @@ export function LibraryWorksPage() {
   }, [])
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <button
-            type="button"
-            onClick={() => navigate('/library')}
-            className="mb-2 flex items-center gap-1.5 text-[11px] text-ink-faint transition hover:text-ink"
-          >
-            <ArrowLeft className="size-3.5" />
-            返回媒体库
-          </button>
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-[17px] font-semibold tracking-tight text-ink">
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <h1 className="truncate text-[22px] font-semibold tracking-tight text-ink">
               {library?.name ?? '作品列表'}
             </h1>
-            <span className="rounded-md border border-line bg-panel-2/60 px-1.5 py-0.5 text-[10px] text-ink-faint">
-              {works.length} 部电影
-            </span>
+            <span className="text-[12px] text-ink-faint">{works.length} 部电影</span>
           </div>
-          <p className="mt-1 text-[12px] text-ink-dim">
-            浏览、播放并管理该作品集媒体库中的电影与本地资源。
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -184,7 +174,7 @@ export function LibraryWorksPage() {
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-          <div className="grid gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-x-4 gap-y-6">
             {works.map((work) => (
               <WorkCard
                 key={work.id}

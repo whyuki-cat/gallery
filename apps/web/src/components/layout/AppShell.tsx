@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 
+import {
+  BreadcrumbsProvider,
+  useBreadcrumbsTrail,
+  type BreadcrumbItem,
+} from '@/components/layout/breadcrumbs'
 import { Sidebar } from '@/components/layout/Sidebar'
 import {
   SettingsContext,
@@ -34,55 +39,101 @@ export function AppShell() {
   }, [collapsed])
 
   return (
-    <SettingsContext.Provider value={{ openSettings }}>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar
-          collapsed={collapsed}
-          settingsOpen={settingsOpen}
-          onOpenSettings={() => openSettings('appearance')}
-        />
+    <BreadcrumbsProvider>
+      <SettingsContext.Provider value={{ openSettings }}>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar
+            collapsed={collapsed}
+            settingsOpen={settingsOpen}
+            onOpenSettings={() => openSettings('appearance')}
+          />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line/70 px-8">
-            <div className="flex min-w-0 items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setCollapsed((value) => !value)}
-                aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
-                title={collapsed ? '展开侧边栏' : '收起侧边栏'}
-                className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-panel-2/60 text-ink-dim transition hover:border-line-strong hover:bg-panel-3 hover:text-ink active:scale-95"
-              >
-                {collapsed ? (
-                  <PanelLeftOpen className="size-4" strokeWidth={1.9} />
-                ) : (
-                  <PanelLeftClose className="size-4" strokeWidth={1.9} />
-                )}
-              </button>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line/70 px-8">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCollapsed((value) => !value)}
+                  aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
+                  title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-panel-2/60 text-ink-dim transition hover:border-line-strong hover:bg-panel-3 hover:text-ink active:scale-95"
+                >
+                  {collapsed ? (
+                    <PanelLeftOpen className="size-4" strokeWidth={1.9} />
+                  ) : (
+                    <PanelLeftClose className="size-4" strokeWidth={1.9} />
+                  )}
+                </button>
 
-              <nav aria-label="面包屑" className="flex min-w-0 items-center gap-2 text-[13px]">
-                <span className="shrink-0 text-ink-faint">{section?.label ?? 'Gallery'}</span>
-                <span className="shrink-0 text-ink-faint/40">/</span>
-                <span className="truncate font-medium text-ink">{current?.label ?? '概览'}</span>
-              </nav>
-            </div>
+                <BreadcrumbTrail
+                  sectionLabel={section?.label}
+                  currentLabel={current?.label}
+                />
+              </div>
 
-            <ServerStatus />
-          </header>
+              <ServerStatus />
+            </header>
 
-          <main className="relative flex-1 overflow-hidden">
-            <div className="flex h-full w-full flex-col px-8 py-8">
-              <Outlet />
-            </div>
-          </main>
+            <main className="relative flex-1 overflow-hidden">
+              <div className="flex h-full w-full flex-col px-8 py-8">
+                <Outlet />
+              </div>
+            </main>
+          </div>
+
+          <SettingsDialog
+            open={settingsOpen}
+            section={settingsSection}
+            onClose={() => setSettingsOpen(false)}
+          />
         </div>
+      </SettingsContext.Provider>
+    </BreadcrumbsProvider>
+  )
+}
 
-        <SettingsDialog
-          open={settingsOpen}
-          section={settingsSection}
-          onClose={() => setSettingsOpen(false)}
-        />
-      </div>
-    </SettingsContext.Provider>
+function BreadcrumbTrail({
+  sectionLabel,
+  currentLabel,
+}: {
+  sectionLabel?: string
+  currentLabel?: string
+}) {
+  const trail = useBreadcrumbsTrail()
+  const items: BreadcrumbItem[] =
+    trail.length > 0 ? trail : currentLabel ? [{ label: currentLabel }] : []
+
+  return (
+    <nav aria-label="面包屑" className="flex min-w-0 items-center gap-2 text-[13px]">
+      {sectionLabel && (
+        <>
+          <span className="shrink-0 text-ink-faint">{sectionLabel}</span>
+          <span className="shrink-0 text-ink-faint/60">/</span>
+        </>
+      )}
+      {items.map((item, index) => {
+        const last = index === items.length - 1
+        return (
+          <Fragment key={`${item.label}-${index}`}>
+            {index > 0 && <span className="shrink-0 text-ink-faint/60">/</span>}
+            {item.to && !last ? (
+              <Link
+                to={item.to}
+                className="max-w-[180px] truncate text-ink-dim transition hover:text-ink"
+              >
+                {item.label}
+              </Link>
+            ) : last ? (
+              <span aria-current="page" className="max-w-[280px] truncate font-medium text-ink">
+                {item.label}
+              </span>
+            ) : (
+              <span className="max-w-[180px] truncate text-ink-dim">{item.label}</span>
+            )}
+          </Fragment>
+        )
+      })}
+    </nav>
   )
 }
 

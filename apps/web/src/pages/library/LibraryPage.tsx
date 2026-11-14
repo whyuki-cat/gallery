@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
-  HardDrive,
   Library,
   Loader2,
   Plus,
@@ -20,19 +19,8 @@ import {
   isActiveMigration,
   type LibraryOverview,
   type LibraryView,
-  type RootStatus,
 } from '@/features/library/types'
 import { useSettings } from '@/features/settings/settings-context'
-
-const ROOT_STATUS_LABELS: Record<RootStatus, string> = {
-  unset: '未配置',
-  ok: '可用',
-  missing: '目录不存在',
-  'not-directory': '不是目录',
-  unreadable: '不可读',
-  unwritable: '不可写',
-  symlink: '符号链接',
-}
 
 interface Notice {
   kind: 'ok' | 'error'
@@ -90,12 +78,7 @@ export function LibraryPage() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[17px] font-semibold tracking-tight text-ink">媒体库</h1>
-          <p className="mt-1 text-[12.5px] text-ink-dim">
-            管理媒体根路径与媒体库。作品集目录由系统托管，文件规范来源保持原位。
-          </p>
-        </div>
+        <h1 className="text-[17px] font-semibold tracking-tight text-ink">媒体库</h1>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -156,31 +139,6 @@ export function LibraryPage() {
         </div>
       ) : (
         <>
-          <div
-            className={cn(
-              'flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-[11.5px]',
-              rootWarning
-                ? 'border-amber-400/25 bg-amber-400/5 text-amber-200'
-                : 'border-line/80 bg-panel-2/40 text-ink-dim',
-            )}
-          >
-            <HardDrive className="size-3.5 shrink-0" />
-            <span className="shrink-0 text-ink-faint">媒体根路径</span>
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
-              {overview?.mediaRoot ?? '未配置'}
-            </span>
-            <span className="shrink-0 rounded-md border border-current/20 px-1.5 py-0.5">
-              {ROOT_STATUS_LABELS[rootStatus]}
-            </span>
-            <button
-              type="button"
-              onClick={() => openSettings('media')}
-              className="shrink-0 rounded-md border border-line bg-panel-2/60 px-2 py-0.5 text-[11px] text-ink-dim transition hover:border-line-strong hover:text-ink"
-            >
-              设置
-            </button>
-          </div>
-
           {rootWarning && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-[11.5px] leading-relaxed text-amber-200">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
@@ -215,7 +173,7 @@ export function LibraryPage() {
               <Library className="size-8 text-ink-faint/70" strokeWidth={1.4} />
               <div className="text-[13px] font-medium text-ink-dim">还没有媒体库</div>
               <p className="max-w-sm text-[12px] leading-relaxed text-ink-faint">
-                创建作品集媒体库，登记媒体根路径下的内容；或创建文件规范媒体库，引用已有的 Jellyfin 风格目录。
+                创建作品集媒体库管理电影作品；或创建文件规范媒体库，引用已有的 Jellyfin 风格目录。
               </p>
               <button
                 type="button"
